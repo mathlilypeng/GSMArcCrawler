@@ -72,29 +72,25 @@ class GSMArcSpider:
         """
         req = urllib2.Request(phone.get_url())
         response = urllib2.urlopen(req).read().decode("utf-8")
+        sel = Selector(text=response, type="html")
 
         # get the overview information of the phone
-        sel = Selector(text=response)
-        tmp = self.get_phone_overview_inf(sel.xpath('//div[@class="overview"]/'
-                                                    'div[@class="ph_info"]/table'))
-#        phone.set_overview(tmp)
-#
-#        # get the Network & Platforms information
-#        sel = Selector(text=response)
-#        self.get_table_info(sel.xpath('//div[@class="grid_17 alpha omega"]'
-#                                      '/div[@class="info_row"]/div[@class="info_data"]/table'))
-#
-#        # get the sepecifications
-#        sel = Selector(text=response)
-#        tables = sel.xpath('//div[@id="full_specification"]//div/table')
-#
-#        for table in tables:
-#            self.get_table_info(table)
+        phone.set_overview(self.get_phone_overview_inf(sel.xpath('//div[@class="overview"]/'
+                                                                 'div[@class="ph_info"]/table')))
+        # get the Popularity and Rating info
+        phone.set_rating(self.get_rating_info(sel.xpath('//div[@class="ph_rateing"]')))
+
+        # get the Specifications
+        for info_row in sel.xpath('//div[@class="info_row"]'):
+            if info_row.xpath('.//table'):
+                print "\n"
+                self.get_table_info(info_row)
 
     # get the overview information for the selected mobile phone
     def get_phone_overview_inf(self, overview):
         """
-        :param overview: xpath objects for overview table, which contains the information of mobile phone overview
+        :rtype : dict
+        :param overview: xpath object for overview table, which contains the information of mobile phone overview
         :return: a dictionary for mobile phone overview
         """
         overview_dict = dict()
@@ -105,7 +101,7 @@ class GSMArcSpider:
             flag = False  # Denote whether the key and val is valid, the default value is False
 
             if key and val:
-                key = key.extract()[0].strip().lower().replace('\s+', '_')
+                key = key.extract()[0].strip().lower().replace(' ', '_')
                 if key:
                     val = val.extract()[0].strip().lower()
                     flag = True
@@ -119,72 +115,51 @@ class GSMArcSpider:
                 tmp = tr.xpath('td[contains(span, "Device Colors")]')
                 if tmp:
                     key = "colors"
-                    val = re.sub('<.*?>|\(|\)', '',tmp.xpath('.//span[2]')[0].extract().strip().lower())
+                    val = re.sub('<.*?>|\(|\)', '', tmp.xpath('.//span[2]')[0].extract().strip().lower())
                     flag = True
 
             if flag:
                 overview_dict[key] = val
-                print "%s: %s" %(key, val)
-
-
-
-
-
-            # look for device color info
-
-
-#        for item in overview:
-#            attr = item.xpath('th/text()')
-#            val = item.xpath('td')
-#            if attr and val:
-#                attr = attr.extract()[0].strip().lower().replace(' ', '_')
-#                val = re.sub('<.*?>|\(|\)', '', val[-1].extract().strip().lower())
-#
-#                if len(attr) == 0:
-#                    if 'rating' in val:
-#                        attr = "numOfRatings"
-#                        val = re.sub('ratings|rating', "", val).strip()
-#                        attr2 = "score"
-#                        val2 = item.xpath('th/div/@title').extract()[0]
-#                        overview_dict[attr2] = val2
-#                    else:
-#                        print "Unexpected Attribute Detected!\n --%s" % item
-#
-#                overview_dict[attr] = val
-#                print "%s: %s" % (attr, overview_dict.get(attr))
-#
-#            else:
-#                if 'device color' in re.sub('<.*?>', '', val.xpath('span')[0].extract()).strip().lower():
-#                    attr = 'device_color'
-#                    val = re.sub('<.*?>', '', val.xpath('span')[-1].extract()).strip().lower()
-#                    overview_dict[attr] = val
-#                    print "%s: %s" % (attr, val)
-#                else:
-#                    print re.sub('<.*?>', '', val.xpath('span')[0].extract()).strip().lower()
-#                    print "Unexpected Attribute Detected!\n --%s" % item
-
+                print "%s: %s" % (key, val)
         return overview_dict
 
-    # get the network & platforms information for the selected phone
-    def get_table_info(self, table):
+    def get_rating_info(self, ratings):
         """
-        :param table:  xpath object for table node, which contains information for a table
+        :param ratings: xpath object for popularity and rating modular
+        :return: a dictionary with rating info
+        """
+        keys = ratings.xpath('div/@class').extract()
+        vals = ratings.xpath('div/p/b/text()').extract()
+
+        for i, key in enumerate(keys):
+            vals[i] = re.sub('\(|\)|\s+', '', vals[i])
+            print "%s: %s" % (key, vals[i])
+        return dict(zip(keys, vals))
+
+    # get the network & platforms information for the selected phone
+    def get_table_info(self, info_row):
+        """
+        :param info_row:  xpath object for table node, which contains information for a table
         :return: a dictinary containing the information of network & platforms
         """
-        keys = [item.strip().lower() for item in table.xpath('tr/th/text()').extract()]
+        title = info_row.xpath('h3/text()')[0].extract()
+        print title
+        table = info_row.xpath('div[@class="info_data"]/table')
+        keys = []
+        for item in table.xpath('tr/th/text()').extract():
+            keys.append(item.strip().lower().replace(' ', '_'))
         # vals = [item.xpath('.//text()') for item in network_n_platforms.xpath('tr//td[2]')]
         vals = [''.join(val.extract()).strip().lower() for val in
                 (item.xpath('.//text()') for item in table.xpath('tr//td[2]'))]
-        print "\n"
 
         for i, key in enumerate(keys):
             print "%s: %s" % (key, vals[i])
 
-        return dict(zip(keys, vals))
+        return title, dict(zip(keys, vals))
 
     def run(self):
         self.get_brands()
-        self.get_phone_info(self.brandlist[4])
+        self.get_phone_info(self.brandlist[1])
 
 
 myspider = GSMArcSpider()

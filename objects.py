@@ -46,3 +46,12 @@ class Phone(object):
 
     def set_overview(self, overview):
         self.__Overview = overview
+
+    def get_overview(self):
+        return self.__Overview
+
+    def set_rating(self, rating):
+        self.__Rating = rating
+
+    def get_rating(self):
+        return self.__Rating
