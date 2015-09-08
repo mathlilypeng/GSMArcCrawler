@@ -55,3 +55,10 @@ class Phone(object):
 
     def get_rating(self):
         return self.__Rating
+
+class Table(object):
+
+    def __init__(self, table_name = "", col_name_list = tuple(), col_type_list = tuple()):
+        self.table_name = table_name
+        self.col_name_list = list(col_name_list)
+        self.col_type_list = list(col_type_list)
